@@ -1,0 +1,44 @@
+name: 'Deploye project to AWS Elastic Beanstalk'
+description: 'Deploy a project to AWS Elastic Beanstalk.'
+author: 'Amrane Ait Zeouay'
+runs:
+  using: 'node12'
+  main: 'deploy-beanstalk.js'
+inputs:
+  aws_access_key:
+    description: 'AWS Access Key.'
+    required: true
+  aws_secret_key:
+    description: 'AWS Secret Key.'
+    required: true
+  region:
+    description: "AWS Environment's Region."
+    required: true
+  application_name:
+    description: "AWS Elastic Beanstalk application's name."
+    required: true
+  environment_name:
+    description: "AWS Elastic Beanstalk environment's name."
+    required: true
+  s3_bucket_name:
+    description: "AWS S3 Bucket's name."
+    required: true
+  s3_bucket_key:
+    description: "AWS S3 Bucket's file."
+    required: true
+  s3_file_path:
+    description: 'AWS Elastic Beanstalk file path.'
+    required: true
+  ebs_version_label:
+    description: 'AWS EBS version label.'
+    required: true
+  ebs_description:
+    description: 'AWS EBS Description.'
+    required: false
+  ebs_wait_for_env_to_be_green:
+    description: 'If we should wait for AWS Elastic Beanstalk environment to be green.'
+    required: false
+
+branding:
+  icon: 'arrow-up'
+  color: 'green'
