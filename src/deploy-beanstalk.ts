@@ -10,7 +10,7 @@ import { BucketName, ManagedUpload, ObjectKey } from 'aws-sdk/clients/s3';
 
 let retriesCounter: number = 0;
 const AWS_EBS_TIMEOUT: number = 30 * 1000;
-const NUMBER_MAX_OF_RETRIES: number = 10;
+const NUMBER_MAX_OF_RETRIES: number = 30;
 const elasticbeanstalk: ElasticBeanstalk = new ElasticBeanstalk();
 
 function initLogs(): void {
@@ -231,7 +231,9 @@ const waitForEnvironmentToBeGreen = (
   { environmentName }: { environmentName: string },
   onSuccess: Function,
 ): void => {
-  setTimeout(() => checkIfEnvironmentIsReady({ environmentName }, onSuccess), AWS_EBS_TIMEOUT);
+  retriesCounter = 0;
+  // Wait more than 30 s because it's creating new configuration from CloudFormation
+  setTimeout(() => checkIfEnvironmentIsReady({ environmentName }, onSuccess), 5 * AWS_EBS_TIMEOUT);
 };
 
 const onDeploymentComplete = (data: any) => {
