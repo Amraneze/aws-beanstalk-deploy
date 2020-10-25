@@ -253,9 +253,9 @@ const onFinishingDeployment = ({
 }): void => {
   if (updatedVersionUrl && expectedVersion) {
     fetch(updatedVersionUrl)
-      .then((response) => response.json())
-      .then((json) => {
-        const stringifyResponse = JSON.stringify(json);
+      .then((res: any) => res.text())
+      .then((text: string) => {
+        const stringifyResponse = JSON.stringify(text);
         if (stringifyResponse.includes(expectedVersion)) {
           console.group('Checking AWS EBS version:');
           console.log('          JSON response: ', stringifyResponse);
