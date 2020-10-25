@@ -165,7 +165,12 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
     partSize: 10 * 1024 * 1024,
     queueSize: 1,
   };
-  console.log(`Uploading the file to S3 bucket with data ${JSON.stringify(params)}`);
+  console.log(
+    `Uploading the file to S3 bucket with data ${JSON.stringify({
+      bucket: params.Bucket,
+      key: params.Key,
+    })}`,
+  );
   s3.upload(params, options, (error, data) => {
     if (error)
       onError({
@@ -205,7 +210,7 @@ const checkIfEnvironmentIsReady = (
       Status?.toLowerCase() === 'ready' &&
       InstancesHealth?.Ok === 1
     ) {
-      onSuccess();
+      onSuccess(true);
     } else {
       isEnvironmentIsReady({ environmentName }, onSuccess);
     }
