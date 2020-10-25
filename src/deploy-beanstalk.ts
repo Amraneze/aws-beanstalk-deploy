@@ -12,11 +12,17 @@ let retriesCounter: number = 0;
 const AWS_EBS_TIMEOUT: number = 30 * 1000;
 const NUMBER_MAX_OF_RETRIES: number = 30;
 const elasticbeanstalk: ElasticBeanstalk = new ElasticBeanstalk();
+const enableDebug: boolean = /true/i.test(process.env.INPUT_ENABLE_DEBUG || '');
 
 function initLogs(): void {
-  console.info = (msg: string, data: any) => console.log(`::info::${msg}`, data);
-  console.error = (msg: string, data: any) => console.log(`::error::${msg}`, data);
-  console.warn = (msg: string, data: any) => console.log(`::warning::${msg}`, data);
+  console.info = (msg: string, data: any) => console.log(`::info::${msg}`, JSON.stringify(data));
+  console.error = (msg: string, data: any) => console.log(`::error::${msg}`, JSON.stringify(data));
+  console.debug = (msg: string, data: any) => {
+    if (enableDebug) {
+      console.log(`::eebug::${msg}`, JSON.stringify(data));
+    }
+  };
+  console.warn = (msg: string, data: any) => console.log(`::warning::${msg}`, JSON.stringify(data));
   console.log(
     'Deploy-aws-beanstalk: GitHub Action for deploying a project in AWS Elastic Beanstalk.',
   );
@@ -30,8 +36,8 @@ function parseArgs(): {
     bucketName: BucketName;
   };
   description: string;
-  versionLabel: string;
   accessKeyId: string;
+  versionLabel: string;
   expectedVersion: string;
   secretAccessKey: string;
   environmentName: string;
@@ -165,7 +171,7 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
     partSize: 10 * 1024 * 1024,
     queueSize: 1,
   };
-  console.log(
+  console.debug(
     `Uploading the file to S3 bucket with data ${JSON.stringify({
       bucket: params.Bucket,
       key: params.Key,
@@ -193,7 +199,7 @@ const checkIfEnvironmentIsReady = (
   };
   elasticbeanstalk.describeEnvironmentHealth(ebsEnvParams, (error, data) => {
     retriesCounter += 1;
-    console.log(`describing EBS Environment's Health ${JSON.stringify(data)}`);
+    console.debug(`describing EBS Environment's Health ${JSON.stringify(data)}`);
     if (error) handleErrors({ step: 'checking if the env is ready', error });
     const { Status, HealthStatus, InstancesHealth } = data;
     if (retriesCounter === NUMBER_MAX_OF_RETRIES) {
@@ -221,7 +227,7 @@ isEnvironmentIsReady = (
   { environmentName }: { environmentName: string },
   onSuccess: Function,
 ): void => {
-  console.log('Checking if EBS Env is ready');
+  console.debug('Checking if EBS Env is ready');
   setTimeout(() => {
     checkIfEnvironmentIsReady({ environmentName }, onSuccess);
   }, AWS_EBS_TIMEOUT);
@@ -237,7 +243,7 @@ const waitForEnvironmentToBeGreen = (
 };
 
 const onDeploymentComplete = (data: any) => {
-  console.log('Congratulations, your deployment is complete. Wahoo!');
+  console.debug('Congratulations, your deployment is complete. Wahoo!');
   Object.entries(data).forEach(([key, value]) => setOutput(key, JSON.stringify(value)));
   process.exit(0);
 };
@@ -257,10 +263,9 @@ const onFinishingDeployment = ({
       .then((text: string) => {
         const stringifyResponse = JSON.stringify(text);
         if (stringifyResponse.includes(expectedVersion)) {
-          console.group('Checking AWS EBS version:');
-          console.log('          JSON response: ', stringifyResponse);
-          console.log('       Expected version: ', expectedVersion);
-          console.groupEnd();
+          console.debug('Checking AWS EBS version:');
+          console.debug('          JSON response: ', stringifyResponse);
+          console.debug('       Expected version: ', expectedVersion);
           onDeploymentComplete(data);
         } else {
           handleErrors({
@@ -290,9 +295,9 @@ const updateEnvironment = ({
   updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 }) => {
-  console.log('EBS Application is created, Upadating EBS Env');
+  console.debug('EBS Application is created, Upadating EBS Env');
   isEnvironmentIsReady({ environmentName }, (isReady: boolean): void => {
-    console.log(`EBS Env is ${isReady ? '' : 'not '}ready`);
+    console.debug(`EBS Env is ${isReady ? '' : 'not '}ready`);
     if (isReady) {
       const ebsEnvParams = {
         EnvironmentName: environmentName,
@@ -331,7 +336,7 @@ const createApplicationVersion = ({
   updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 }): Function => ({ Key, Bucket }: { Key: string; Bucket: string }): void => {
-  console.log('File uploaded to S3, creating an EBS application');
+  console.debug('File uploaded to S3, creating an EBS application');
   const ebsParams = {
     ApplicationName: applicationName,
     AutoCreateApplication: true,

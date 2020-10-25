@@ -44,6 +44,9 @@ inputs:
   expected_version:
     description: "AWS EBS application's expected version that should be delpoyed."
     required: false
+  enable_debug:
+    description: 'To enable debug and display logs.'
+    required: false
 
 branding:
   icon: 'arrow-up'
