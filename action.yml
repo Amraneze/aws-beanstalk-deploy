@@ -38,6 +38,12 @@ inputs:
   ebs_wait_for_env_to_be_green:
     description: 'If we should wait for AWS Elastic Beanstalk environment to be green.'
     required: false
+  updated_version_url:
+    description: 'AWS EBS url to check the version deployed.'
+    required: false
+  expected_version:
+    description: "AWS EBS application's expected version that should be delpoyed."
+    required: false
 
 branding:
   icon: 'arrow-up'

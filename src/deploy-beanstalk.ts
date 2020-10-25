@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import fs from 'fs';
-import { setOutput } from '@actions/core';
 import AWS from 'aws-sdk';
+import fetch from 'node-fetch';
+import { setOutput } from '@actions/core';
 import { S3, ElasticBeanstalk } from 'aws-sdk/clients/all';
 // eslint-disable-next-line no-unused-vars
 import { BucketName, ManagedUpload, ObjectKey } from 'aws-sdk/clients/s3';
@@ -30,9 +31,11 @@ function parseArgs(): {
   description: string;
   versionLabel: string;
   accessKeyId: string;
+  expectedVersion: string;
   secretAccessKey: string;
   environmentName: string;
   applicationName: string;
+  updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 } {
   const region: string = (process.env.INPUT_REGION || '').trim();
@@ -50,6 +53,8 @@ function parseArgs(): {
   const waitForEnvToBeGreen: boolean = /true/i.test(
     process.env.INPUT_EBS_WAIT_FOR_ENV_TO_BE_GREEN || '',
   );
+  const expectedVersion: string = (process.env.INPUT_EXPECTED_VERSION || '').trim();
+  const updatedVersionUrl: string = (process.env.INPUT_UPDATED_VERSION_URL || '').trim();
 
   const displayError = (error: string) =>
     console.error(`Error: ${error} was not specified in the arguments with.`);
@@ -97,9 +102,11 @@ function parseArgs(): {
     accessKeyId,
     description,
     versionLabel,
+    expectedVersion,
     secretAccessKey,
     environmentName,
     applicationName,
+    updatedVersionUrl,
     waitForEnvToBeGreen,
   };
 }
@@ -202,13 +209,23 @@ const waitForEnvironmentToBeGreen = () => {
   setTimeout(() => {}, AWS_EBS_TIMEOUT);
 };
 
+const onDeploymentComplete = (data: any) => {
+  console.log('Congratulations, your deployment is complete. Wahoo!');
+  Object.entries(data).forEach(([key, value]) => setOutput(key, JSON.stringify(value)));
+  process.exit(0);
+};
+
 const updateEnvironment = ({
   versionLabel,
   environmentName,
+  expectedVersion,
+  updatedVersionUrl,
   waitForEnvToBeGreen,
 }: {
   versionLabel: string;
   environmentName: string;
+  expectedVersion: string;
+  updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 }) => {
   isEnvironmentIsReady({ environmentName }, (isReady: boolean): void => {
@@ -221,9 +238,29 @@ const updateEnvironment = ({
         if (error) handleErrors({ step: 'updating the env', error });
         if (waitForEnvToBeGreen) {
           waitForEnvironmentToBeGreen();
+        } else if (updatedVersionUrl && expectedVersion) {
+          fetch(updatedVersionUrl)
+            .then((response) => response.json())
+            .then((json) => {
+              const stringifyResponse = JSON.stringify(json);
+              if (stringifyResponse.includes(expectedVersion)) {
+                console.group('Checking AWS EBS version:');
+                console.log('          JSON response: ', stringifyResponse);
+                console.log('       Expected version: ', expectedVersion);
+                console.groupEnd();
+                onDeploymentComplete(data);
+              } else {
+                handleErrors({
+                  step: 'checking if the version is deployed',
+                  error: {
+                    message: 'the expected version is not the same as the one deployed',
+                    response: stringifyResponse,
+                  },
+                });
+              }
+            });
         } else {
-          Object.entries(data).forEach(([key, value]) => setOutput(key, JSON.stringify(value)));
-          process.exit(0);
+          onDeploymentComplete(data);
         }
       });
     } else {
@@ -237,12 +274,16 @@ const createApplicationVersion = ({
   versionLabel,
   applicationName,
   environmentName,
+  expectedVersion,
+  updatedVersionUrl,
   waitForEnvToBeGreen,
 }: {
   description: string;
   versionLabel: string;
   applicationName: string;
   environmentName: string;
+  expectedVersion: string;
+  updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 }): Function => ({ Key, Bucket }: { Key: string; Bucket: string }): void => {
   const ebsParams = {
@@ -259,7 +300,14 @@ const createApplicationVersion = ({
 
   elasticbeanstalk.createApplicationVersion(ebsParams, (error) => {
     if (error) handleErrors({ error, step: 'Creating EBS application version' });
-    else updateEnvironment({ environmentName, versionLabel, waitForEnvToBeGreen });
+    else
+      updateEnvironment({
+        environmentName,
+        versionLabel,
+        expectedVersion,
+        updatedVersionUrl,
+        waitForEnvToBeGreen,
+      });
   });
 };
 
@@ -271,13 +319,15 @@ function init(): void {
     description,
     accessKeyId,
     versionLabel,
+    expectedVersion,
     secretAccessKey,
     environmentName,
     applicationName,
+    updatedVersionUrl,
     waitForEnvToBeGreen,
   } = parseArgs();
 
-  console.group('Checking the AWS EBS environment with arguments:');
+  console.group('Deploying an application in AWS EBS with arguments:');
   console.log("          Environment's name: ", environmentName);
   console.log('                  AWS Region: ', region);
   console.log("          Application's Name: ", applicationName);
@@ -285,6 +335,8 @@ function init(): void {
   console.log('              S3 Bucket file: ', s3Data.key);
   console.log('    Wait for Env to be green: ', waitForEnvToBeGreen);
   console.log('       AWS EBS version label: ', versionLabel);
+  console.log(' AWS EBS url version checker: ', updatedVersionUrl);
+  console.log('    AWS EBS expected version: ', expectedVersion);
   console.groupEnd();
 
   connectToAWS({
@@ -298,6 +350,8 @@ function init(): void {
           versionLabel,
           applicationName,
           environmentName,
+          expectedVersion,
+          updatedVersionUrl,
           waitForEnvToBeGreen,
         }),
         onError: handleErrors,
