@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import AWS from 'aws-sdk';
+import path from 'path';
 import fetch from 'node-fetch';
 import { setOutput } from '@actions/core';
 import { S3, ElasticBeanstalk } from 'aws-sdk/clients/all';
@@ -145,21 +146,32 @@ const connectToAWS = ({
 // We will work as the bucket is already created
 // We can improve the application to call the funciton
 // createBucket if needed
-const uploadToS3 = ({
-  key,
-  filePath,
-  bucketName,
+const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: BucketName }) => ({
+  onSuccess,
+  onError,
 }: {
-  key: ObjectKey;
-  filePath: string;
-  bucketName: BucketName;
-}) => ({ onSuccess, onError }: { onSuccess: Function; onError: Function }): void => {
+  onSuccess: Function;
+  onError: Function;
+}): void => {
   const s3: S3 = new S3();
   const fileData: string = fs.readFileSync(filePath, 'utf8');
-  const params: S3.Types.PutObjectRequest = { Bucket: bucketName, Key: key, Body: fileData };
-  const options: ManagedUpload.ManagedUploadOptions = { partSize: 10 * 1024 * 1024, queueSize: 1 };
+  const key: ObjectKey = path.basename(filePath);
+  const params: S3.Types.PutObjectRequest = {
+    Bucket: bucketName,
+    Key: key,
+    Body: fileData,
+  };
+  const options: ManagedUpload.ManagedUploadOptions = {
+    partSize: 10 * 1024 * 1024,
+    queueSize: 1,
+  };
+  console.log(`Uploading the file to S3 bucket with data ${JSON.stringify(params)}`);
   s3.upload(params, options, (error, data) => {
-    if (error) onError({ error, step: 'uploading to S3' });
+    if (error)
+      onError({
+        error,
+        step: 'uploading to S3',
+      });
     else onSuccess(data);
   });
 };
@@ -176,17 +188,21 @@ const checkIfEnvironmentIsReady = (
   };
   elasticbeanstalk.describeEnvironmentHealth(ebsEnvParams, (error, data) => {
     retriesCounter += 1;
+    console.log(`describing EBS Environment's Health ${JSON.stringify(data)}`);
     if (error) handleErrors({ step: 'checking if the env is ready', error });
     const { Status, HealthStatus, InstancesHealth } = data;
     if (retriesCounter === NUMBER_MAX_OF_RETRIES) {
       handleErrors({
         step: 'checking if the env is ready',
-        error: 'The maximum number of retires reached, please check your AWS EBS',
+        error: {
+          message: 'The maximum number of retires reached, please check your AWS EBS',
+          error: JSON.stringify(data),
+        },
       });
     }
     if (
       HealthStatus?.toLowerCase() === 'ok' &&
-      Status?.toLowerCase() === 'green' &&
+      Status?.toLowerCase() === 'ready' &&
       InstancesHealth?.Ok === 1
     ) {
       onSuccess();
@@ -200,19 +216,58 @@ isEnvironmentIsReady = (
   { environmentName }: { environmentName: string },
   onSuccess: Function,
 ): void => {
+  console.log('Checking if EBS Env is ready');
   setTimeout(() => {
     checkIfEnvironmentIsReady({ environmentName }, onSuccess);
   }, AWS_EBS_TIMEOUT);
 };
 
-const waitForEnvironmentToBeGreen = () => {
-  setTimeout(() => {}, AWS_EBS_TIMEOUT);
+const waitForEnvironmentToBeGreen = (
+  { environmentName }: { environmentName: string },
+  onSuccess: Function,
+): void => {
+  setTimeout(() => checkIfEnvironmentIsReady({ environmentName }, onSuccess), AWS_EBS_TIMEOUT);
 };
 
 const onDeploymentComplete = (data: any) => {
   console.log('Congratulations, your deployment is complete. Wahoo!');
   Object.entries(data).forEach(([key, value]) => setOutput(key, JSON.stringify(value)));
   process.exit(0);
+};
+
+const onFinishingDeployment = ({
+  data,
+  updatedVersionUrl,
+  expectedVersion,
+}: {
+  data: any;
+  updatedVersionUrl: string;
+  expectedVersion: string;
+}): void => {
+  if (updatedVersionUrl && expectedVersion) {
+    fetch(updatedVersionUrl)
+      .then((response) => response.json())
+      .then((json) => {
+        const stringifyResponse = JSON.stringify(json);
+        if (stringifyResponse.includes(expectedVersion)) {
+          console.group('Checking AWS EBS version:');
+          console.log('          JSON response: ', stringifyResponse);
+          console.log('       Expected version: ', expectedVersion);
+          console.groupEnd();
+          onDeploymentComplete(data);
+        } else {
+          handleErrors({
+            step: 'checking if the version is deployed',
+            error: {
+              message: 'the expected version is not the same as the one deployed',
+              response: stringifyResponse,
+            },
+          });
+        }
+      });
+  } else {
+    onDeploymentComplete(data);
+  }
 };
 
 const updateEnvironment = ({
@@ -228,7 +283,9 @@ const updateEnvironment = ({
   updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 }) => {
+  console.log('EBS Application is created, Upadating EBS Env');
   isEnvironmentIsReady({ environmentName }, (isReady: boolean): void => {
+    console.log(`EBS Env is ${isReady ? '' : 'not '}ready`);
     if (isReady) {
       const ebsEnvParams = {
         EnvironmentName: environmentName,
@@ -237,30 +294,11 @@ const updateEnvironment = ({
       elasticbeanstalk.updateEnvironment(ebsEnvParams, (error, data) => {
         if (error) handleErrors({ step: 'updating the env', error });
         if (waitForEnvToBeGreen) {
-          waitForEnvironmentToBeGreen();
-        } else if (updatedVersionUrl && expectedVersion) {
-          fetch(updatedVersionUrl)
-            .then((response) => response.json())
-            .then((json) => {
-              const stringifyResponse = JSON.stringify(json);
-              if (stringifyResponse.includes(expectedVersion)) {
-                console.group('Checking AWS EBS version:');
-                console.log('          JSON response: ', stringifyResponse);
-                console.log('       Expected version: ', expectedVersion);
-                console.groupEnd();
-                onDeploymentComplete(data);
-              } else {
-                handleErrors({
-                  step: 'checking if the version is deployed',
-                  error: {
-                    message: 'the expected version is not the same as the one deployed',
-                    response: stringifyResponse,
-                  },
-                });
-              }
-            });
+          waitForEnvironmentToBeGreen({ environmentName }, () =>
+            onFinishingDeployment({ data, updatedVersionUrl, expectedVersion }),
+          );
         } else {
-          onDeploymentComplete(data);
+          onFinishingDeployment({ data, updatedVersionUrl, expectedVersion });
         }
       });
     } else {
@@ -286,6 +324,7 @@ const createApplicationVersion = ({
   updatedVersionUrl: string;
   waitForEnvToBeGreen: boolean;
 }): Function => ({ Key, Bucket }: { Key: string; Bucket: string }): void => {
+  console.log('File uploaded to S3, creating an EBS application');
   const ebsParams = {
     ApplicationName: applicationName,
     AutoCreateApplication: true,
