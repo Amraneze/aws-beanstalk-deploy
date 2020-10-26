@@ -18,7 +18,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
       - name: Deploy to AWS Elastic Beanstalk
-        uses: Amraneze/aws-beanstalk-deploy@v0.12
+        uses: Amraneze/aws-beanstalk-deploy@master
         with:
           region: AWS_REGION
           environment_name: ELASTIC_BEANSTALK_ENVIRONMENT_NAME
