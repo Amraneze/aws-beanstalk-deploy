@@ -162,7 +162,7 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
   const params: S3.Types.PutObjectRequest = {
     Bucket: bucketName,
     Key: key,
-    Body: fileData,
+    Body: Buffer.from(fileData, 'binary'),
   };
   const options: ManagedUpload.ManagedUploadOptions = {
     partSize: 10 * 1024 * 1024,
