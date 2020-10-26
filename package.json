@@ -41,7 +41,9 @@
   },
   "dependencies": {
     "@actions/core": "^1.2.4",
-    "aws-sdk": "^2.723.0"
+    "@types/node-fetch": "^2.5.7",
+    "aws-sdk": "^2.723.0",
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "@types/node": "^14.0.27",
