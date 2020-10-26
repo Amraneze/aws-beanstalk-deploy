@@ -189,7 +189,7 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
 let isEnvironmentIsReady: Function;
 
 const checkIfEnvironmentIsReady = (
-  { environmentName }: { environmentName: string },
+  { environmentName, isOnlyReady }: { environmentName: string; isOnlyReady: boolean },
   onSuccess: Function,
 ) => {
   const ebsEnvParams: ElasticBeanstalk.Types.DescribeEnvironmentHealthRequest = {
@@ -210,14 +210,17 @@ const checkIfEnvironmentIsReady = (
         },
       });
     }
-    if (
-      HealthStatus?.toLowerCase() === 'ok' &&
-      Status?.toLowerCase() === 'ready' &&
-      InstancesHealth?.Ok === 1
-    ) {
+    // We need to check if it's only ready for updating the env, because we can
+    // have the env to be degraded but ready for a new deployement.
+    const isEnvReady: boolean =
+      (isOnlyReady && Status?.toLowerCase() === 'ready') ||
+      (HealthStatus?.toLowerCase() === 'ok' &&
+        Status?.toLowerCase() === 'ready' &&
+        InstancesHealth?.Ok === 1);
+    if (isEnvReady) {
       onSuccess(true);
     } else {
-      isEnvironmentIsReady({ environmentName }, onSuccess);
+      isEnvironmentIsReady({ environmentName, isOnlyReady }, onSuccess);
     }
   });
 };
@@ -228,7 +231,7 @@ isEnvironmentIsReady = (
 ): void => {
   console.debug('Checking if EBS Env is ready');
   setTimeout(() => {
-    checkIfEnvironmentIsReady({ environmentName }, onSuccess);
+    checkIfEnvironmentIsReady({ environmentName, isOnlyReady: true }, onSuccess);
   }, AWS_EBS_TIMEOUT);
 };
 
@@ -238,7 +241,10 @@ const waitForEnvironmentToBeGreen = (
 ): void => {
   retriesCounter = 0;
   // Wait more than 30 s because it's creating new configuration from CloudFormation
-  setTimeout(() => checkIfEnvironmentIsReady({ environmentName }, onSuccess), 5 * AWS_EBS_TIMEOUT);
+  setTimeout(
+    () => checkIfEnvironmentIsReady({ environmentName, isOnlyReady: false }, onSuccess),
+    5 * AWS_EBS_TIMEOUT,
+  );
 };
 
 const onDeploymentComplete = (data: any) => {
