@@ -31,7 +31,6 @@ function initLogs(): void {
 function parseArgs(): {
   region: string;
   s3Data: {
-    key: ObjectKey;
     filePath: string;
     bucketName: BucketName;
   };
@@ -52,7 +51,6 @@ function parseArgs(): {
   const environmentName: string = (process.env.INPUT_ENVIRONMENT_NAME || '').trim();
   const applicationName: string = (process.env.INPUT_APPLICATION_NAME || '').trim();
   const s3Data: any = {
-    key: (process.env.INPUT_S3_BUCKET_KEY || '').trim(),
     bucketName: (process.env.INPUT_S3_BUCKET_NAME || '').trim(),
     filePath: (process.env.INPUT_S3_FILE_PATH || '').trim(),
   };
@@ -90,10 +88,6 @@ function parseArgs(): {
   }
   if (!versionLabel) {
     displayError("Version's label");
-    process.exit(1);
-  }
-  if (!s3Data.key) {
-    displayError("AWS S3 bucket's file name");
     process.exit(1);
   }
   if (!s3Data.bucketName) {
@@ -407,7 +401,6 @@ function init(): void {
   console.log('                  AWS Region: ', region);
   console.log("          Application's Name: ", applicationName);
   console.log('            AWS EB file path: ', s3Data.filePath);
-  console.log('              S3 Bucket file: ', s3Data.key);
   console.log('    Wait for Env to be green: ', waitForEnvToBeGreen);
   console.log('       AWS EBS version label: ', versionLabel);
   console.log(' AWS EBS url version checker: ', updatedVersionUrl);
