@@ -38,6 +38,7 @@ function parseArgs(): {
   description: string;
   accessKeyId: string;
   versionLabel: string;
+  useSameVersion: boolean;
   expectedVersion: string;
   secretAccessKey: string;
   environmentName: string;
@@ -62,6 +63,7 @@ function parseArgs(): {
   );
   const expectedVersion: string = (process.env.INPUT_EXPECTED_VERSION || '').trim();
   const updatedVersionUrl: string = (process.env.INPUT_UPDATED_VERSION_URL || '').trim();
+  const useSameVersion: boolean = /true/i.test(process.env.INPUT_USE_SAME_VERSION || '');
 
   const displayError = (error: string) =>
     console.error(`Error: ${error} was not specified in the arguments with.`);
@@ -109,6 +111,7 @@ function parseArgs(): {
     accessKeyId,
     description,
     versionLabel,
+    useSameVersion,
     expectedVersion,
     secretAccessKey,
     environmentName,
@@ -322,6 +325,7 @@ const updateEnvironment = ({
 const createApplicationVersion = ({
   description,
   versionLabel,
+  useSameVersion,
   applicationName,
   environmentName,
   expectedVersion,
@@ -330,6 +334,7 @@ const createApplicationVersion = ({
 }: {
   description: string;
   versionLabel: string;
+  useSameVersion: boolean;
   applicationName: string;
   environmentName: string;
   expectedVersion: string;
@@ -350,11 +355,29 @@ const createApplicationVersion = ({
   };
 
   elasticbeanstalk.createApplicationVersion(ebsParams, (error) => {
-    if (error) handleErrors({ error, step: 'Creating EBS application version' });
-    else
+    if (error) {
+      // I should work with statusCode, but I don't know if the statusCode
+      // 400 is only if the version exist or not :(.
+      // There is no documentation talking about error's codes
+      // https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/ElasticBeanstalk.html#createApplicationVersion-property
+      // I found here the codes https://docs.aws.amazon.com/elasticbeanstalk/latest/api/API_CreateApplicationVersion.html
+      // but the status 400 is used for a lot of cases
+      if (error.message.includes('already exists') && useSameVersion) {
+        console.warn(
+          `The application version ${versionLabel} already exist for ${applicationName}. We will use the same version.`,
+        );
+        updateEnvironment({
+          versionLabel,
+          environmentName,
+          expectedVersion,
+          updatedVersionUrl,
+          waitForEnvToBeGreen,
+        });
+      } else handleErrors({ error, step: 'Creating EBS application version' });
+    } else
       updateEnvironment({
-        environmentName,
         versionLabel,
+        environmentName,
         expectedVersion,
         updatedVersionUrl,
         waitForEnvToBeGreen,
@@ -370,6 +393,7 @@ function init(): void {
     description,
     accessKeyId,
     versionLabel,
+    useSameVersion,
     expectedVersion,
     secretAccessKey,
     environmentName,
@@ -399,6 +423,7 @@ function init(): void {
         onSuccess: createApplicationVersion({
           description,
           versionLabel,
+          useSameVersion,
           applicationName,
           environmentName,
           expectedVersion,

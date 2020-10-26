@@ -47,6 +47,9 @@ inputs:
   enable_debug:
     description: 'To enable debug and display logs.'
     required: false
+  use_same_version:
+    description: 'If you want to use the same version in AWS EBS, in case the version already exist.'
+    required: false
 
 branding:
   icon: 'arrow-up'
