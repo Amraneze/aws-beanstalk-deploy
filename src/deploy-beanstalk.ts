@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import fs from 'fs';
-import AWS from 'aws-sdk';
 import path from 'path';
+import AWS from 'aws-sdk';
+import Stream from 'stream';
 import fetch from 'node-fetch';
 import { setOutput } from '@actions/core';
 import { S3, ElasticBeanstalk } from 'aws-sdk/clients/all';
@@ -146,6 +147,21 @@ const connectToAWS = ({
   });
 };
 
+const uploadStream = ({ Bucket, Key }: { Bucket: BucketName; Key: ObjectKey }) => {
+  const s3 = new S3();
+  const stream = new Stream.PassThrough();
+  console.debug(
+    `Uploading the file to S3 bucket with data ${JSON.stringify({
+      Bucket,
+      Key,
+    })}`,
+  );
+  return {
+    writeStream: stream,
+    onUploading: s3.upload({ Bucket, Key, Body: stream }).promise(),
+  };
+};
+
 // We will work as the bucket is already created
 // We can improve the application to call the funciton
 // createBucket if needed
@@ -156,32 +172,18 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
   onSuccess: Function;
   onError: Function;
 }): void => {
-  const s3: S3 = new S3();
-  const fileData: string = fs.readFileSync(filePath, 'utf8');
-  const key: ObjectKey = path.basename(filePath);
-  const params: S3.Types.PutObjectRequest = {
-    Bucket: bucketName,
-    Key: key,
-    Body: Buffer.from(fileData, 'binary'),
-  };
-  const options: ManagedUpload.ManagedUploadOptions = {
-    partSize: 10 * 1024 * 1024,
-    queueSize: 1,
-  };
-  console.debug(
-    `Uploading the file to S3 bucket with data ${JSON.stringify({
-      bucket: params.Bucket,
-      key: params.Key,
-    })}`,
-  );
-  s3.upload(params, options, (error, data) => {
-    if (error)
+  const key: string = path.basename(filePath);
+  const { writeStream, onUploading } = uploadStream({ Bucket: bucketName, Key: key });
+  const readStream = fs.createReadStream(filePath);
+  readStream.pipe(writeStream);
+  onUploading
+    .then((data) => onSuccess(data))
+    .catch((error) =>
       onError({
         error,
         step: 'uploading to S3',
-      });
-    else onSuccess(data);
-  });
+      }),
+    );
 };
 
 let isEnvironmentIsReady: Function;
