@@ -33,7 +33,7 @@ jobs:
           updated_version_url: YOUR_API_CHECKPOINT
           expected_version: EXPECTED_VERSION_TO_BE_DEPLOYED
           use_same_version: true
-          enable_debug: false
+          enable_debug: ${{ secrets.ENABLE_AWS_BS_DEPLOY_DEBUG }}
           use_same_version: true
 ```
 

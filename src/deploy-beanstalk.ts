@@ -4,10 +4,11 @@ import path from 'path';
 import AWS from 'aws-sdk';
 import Stream from 'stream';
 import fetch from 'node-fetch';
+import * as child from 'child_process';
 import { setOutput } from '@actions/core';
 import { S3, ElasticBeanstalk } from 'aws-sdk/clients/all';
 // eslint-disable-next-line no-unused-vars
-import { BucketName, ManagedUpload, ObjectKey } from 'aws-sdk/clients/s3';
+import { BucketName, ObjectKey } from 'aws-sdk/clients/s3';
 
 let retriesCounter: number = 0;
 const AWS_EBS_TIMEOUT: number = 30 * 1000;
@@ -173,8 +174,22 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
   onError: Function;
 }): void => {
   const key: string = path.basename(filePath);
+  const baseFilePath: string = path.join(__dirname, filePath);
   const { writeStream, onUploading } = uploadStream({ Bucket: bucketName, Key: key });
-  const readStream = fs.createReadStream(filePath);
+  const readStream = fs.createReadStream(baseFilePath);
+  readStream.on('error', (error) => {
+    const ls = child.spawnSync('ls', ['-al'], { encoding: 'utf-8' });
+    console.debug(
+      `Listing files of the current working dir: ${ls.stdout}`,
+    );
+    handleErrors({
+      step: 'Reading file',
+      error: {
+        message: `An error occured while reading the file path ${baseFilePath}`,
+        error: JSON.stringify(error),
+      },
+    });
+  });
   readStream.pipe(writeStream);
   onUploading
     .then((data) => onSuccess(data))
@@ -405,14 +420,15 @@ function init(): void {
   } = parseArgs();
 
   console.group('Deploying an application in AWS EBS with arguments:');
-  console.log("          Environment's name: ", environmentName);
   console.log('                  AWS Region: ', region);
-  console.log("          Application's Name: ", applicationName);
+  console.log('            Is Debug enabled: ', enableDebug);
   console.log('            AWS EB file path: ', s3Data.filePath);
-  console.log('    Wait for Env to be green: ', waitForEnvToBeGreen);
+  console.log("          Environment's name: ", environmentName);
+  console.log("          Application's Name: ", applicationName);
   console.log('       AWS EBS version label: ', versionLabel);
-  console.log(' AWS EBS url version checker: ', updatedVersionUrl);
   console.log('    AWS EBS expected version: ', expectedVersion);
+  console.log('    Wait for Env to be green: ', waitForEnvToBeGreen);
+  console.log(' AWS EBS url version checker: ', updatedVersionUrl);
   console.groupEnd();
 
   connectToAWS({
