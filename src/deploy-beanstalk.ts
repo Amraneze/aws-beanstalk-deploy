@@ -174,18 +174,21 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
   onError: Function;
 }): void => {
   const key: string = path.basename(filePath);
-  const baseFilePath: string = path.join(__dirname, filePath);
   const { writeStream, onUploading } = uploadStream({ Bucket: bucketName, Key: key });
-  const readStream = fs.createReadStream(baseFilePath);
+  const readStream = fs.createReadStream(filePath);
   readStream.on('error', (error) => {
+    const pwd = child.spawnSync('pwd', [], { encoding: 'utf-8' });
     const ls = child.spawnSync('ls', ['-al'], { encoding: 'utf-8' });
+    console.debug(
+      `The current working dir: ${pwd.stdout}`,
+    );
     console.debug(
       `Listing files of the current working dir: ${ls.stdout}`,
     );
     handleErrors({
       step: 'Reading file',
       error: {
-        message: `An error occured while reading the file path ${baseFilePath}`,
+        message: `An error occured while reading the file path ${filePath}`,
         error: JSON.stringify(error),
       },
     });
