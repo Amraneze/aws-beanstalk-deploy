@@ -11,7 +11,7 @@ import { S3, ElasticBeanstalk } from 'aws-sdk/clients/all';
 import { BucketName, ObjectKey } from 'aws-sdk/clients/s3';
 
 let retriesCounter: number = 0;
-const AWS_EBS_TIMEOUT: number = 30 * 1000;
+const AWS_EBS_TIMEOUT: number = 60 * 1000;
 const NUMBER_MAX_OF_RETRIES: number = 30;
 const elasticbeanstalk: ElasticBeanstalk = new ElasticBeanstalk();
 const enableDebug: boolean = /true/i.test(process.env.INPUT_ENABLE_DEBUG || '');
@@ -179,12 +179,8 @@ const uploadToS3 = ({ filePath, bucketName }: { filePath: string; bucketName: Bu
   readStream.on('error', (error) => {
     const pwd = child.spawnSync('pwd', [], { encoding: 'utf-8' });
     const ls = child.spawnSync('ls', ['-al'], { encoding: 'utf-8' });
-    console.debug(
-      `The current working dir: ${pwd.stdout}`,
-    );
-    console.debug(
-      `Listing files of the current working dir: ${ls.stdout}`,
-    );
+    console.debug(`The current working dir: ${pwd.stdout}`);
+    console.debug(`Listing files of the current working dir: ${ls.stdout}`);
     handleErrors({
       step: 'Reading file',
       error: {

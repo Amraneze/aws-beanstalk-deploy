@@ -1,7 +1,7 @@
 {
   "name": "deploy-aws-beanstalk",
   "author": "Amrane Ait Zeouay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "GitHub Action to deploy a project to AWS Elastic Beanstalk.",
   "email": "a.zeouayamran@gmail.com",
   "license": "Apache-2.0",
