@@ -11,8 +11,8 @@ import { S3, ElasticBeanstalk } from 'aws-sdk/clients/all';
 import { BucketName, ObjectKey } from 'aws-sdk/clients/s3';
 
 let retriesCounter: number = 0;
-const AWS_EBS_TIMEOUT: number = 60 * 1000;
-const NUMBER_MAX_OF_RETRIES: number = 30;
+const AWS_EBS_TIMEOUT: number = 5 * 1000;
+const NUMBER_MAX_OF_RETRIES: number = 400;
 const elasticbeanstalk: ElasticBeanstalk = new ElasticBeanstalk();
 const enableDebug: boolean = /true/i.test(process.env.INPUT_ENABLE_DEBUG || '');
 
