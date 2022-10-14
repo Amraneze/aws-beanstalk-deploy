@@ -2,7 +2,7 @@ name: 'Deploye project to AWS Elastic Beanstalk'
 description: 'Deploy a project to AWS Elastic Beanstalk.'
 author: 'Amrane Ait Zeouay'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'deploy-beanstalk.js'
 inputs:
   aws_access_key:

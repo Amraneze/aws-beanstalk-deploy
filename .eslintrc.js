@@ -3,7 +3,7 @@ module.exports = {
     browser: true,
     es2020: true,
   },
-  extends: ['airbnb-base', 'prettier', 'prettier/@typescript-eslint'],
+  extends: ['airbnb-base', 'prettier'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 11,
@@ -11,7 +11,6 @@ module.exports = {
   },
   plugins: ['@typescript-eslint'],
   rules: {
-    indent: 2,
     indent: 'off',
     'no-console': 'off',
     'operator-linebreak': [
