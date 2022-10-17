@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Deploy on AWS Elastic Beanstalk Environment
         id: ebs-env
-        uses: Dealermade/aws-beanstalk-deploy@master
+        uses: Amraneze/aws-beanstalk-deploy@master
         with:
           region: ${{ secrets.AWS_REGION }}
           environment_name: ${{ secrets.ENVIRONMENT_NAME }}

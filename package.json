@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Dealermade/aws-beanstalk-deploy.git"
+    "url": "git+https://github.com/Amraneze/aws-beanstalk-deploy.git"
   },
   "keywords": [
     "S3",
@@ -30,9 +30,9 @@
     "elastic beanstalk"
   ],
   "bugs": {
-    "url": "https://github.com/Dealermade/aws-beanstalk-deploy/issues"
+    "url": "https://github.com/Amraneze/aws-beanstalk-deploy/issues"
   },
-  "homepage": "https://github.com/Dealermade/aws-beanstalk-deploy",
+  "homepage": "https://github.com/Amraneze/aws-beanstalk-deploy",
   "husky": {
     "hooks": {
       "pre-commit": "npm run prettier && npm run lint"
