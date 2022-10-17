@@ -1,4 +1,4 @@
-name: 'Deploye project to AWS Elastic Beanstalk'
+name: 'Deploy project to AWS Elastic Beanstalk'
 description: 'Deploy a project to AWS Elastic Beanstalk.'
 author: 'Amrane Ait Zeouay'
 runs:
